@@ -6,7 +6,7 @@ const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
 // IMPORTANT: Never put your real API key directly in frontend code.
 // Use a Supabase Edge Function or backend proxy instead.
 // See README.md for the secure setup instructions.
-const ANTHROPIC_API_KEY = "YOUR_ANTHROPIC_API_KEY"; // ← replace or use edge function
+const ANTHROPIC_API_KEY = "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"; // ← replace or use edge function
 
 let currentStyle = "cinematic";
 let currentPlanText = "";
