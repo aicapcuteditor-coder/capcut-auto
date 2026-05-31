@@ -1,12 +1,10 @@
 // ============================================
 // Dashboard — AI Plan Generation + History
+// Using OpenRouter API
 // ============================================
 
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-// IMPORTANT: Never put your real API key directly in frontend code.
-// Use a Supabase Edge Function or backend proxy instead.
-// See README.md for the secure setup instructions.
-const ANTHROPIC_API_KEY = "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"; // ← replace or use edge function
+const OPENROUTER_API_KEY = "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"; // paste your sk-or-... key here
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 let currentStyle = "cinematic";
 let currentPlanText = "";
@@ -34,7 +32,6 @@ window.addEventListener("supabaseReady", async () => {
   initUserUI(currentUser);
   loadHistory();
 
-  // Check if user came from hero prompt
   const pending = sessionStorage.getItem("pendingPrompt");
   if (pending) {
     sessionStorage.removeItem("pendingPrompt");
@@ -56,21 +53,17 @@ function initUserUI(user) {
 document.querySelectorAll(".side-link[data-view]").forEach(link => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
-    const view = link.dataset.view;
-    switchView(view);
+    switchView(link.dataset.view);
   });
 });
 
 function switchView(view) {
   document.querySelectorAll(".dash-view").forEach(v => v.classList.remove("active"));
   document.querySelectorAll(".side-link[data-view]").forEach(l => l.classList.remove("active"));
-
   const el = document.getElementById(`view-${view}`);
   if (el) el.classList.add("active");
-
   const link = document.querySelector(`.side-link[data-view="${view}"]`);
   if (link) link.classList.add("active");
-
   if (view === "history") renderHistory();
 }
 
@@ -83,9 +76,7 @@ function setStyle(btn, style) {
 
 // ---- Char Counter ----
 const textarea = document.getElementById("promptInput");
-if (textarea) {
-  textarea.addEventListener("input", updateCharCount);
-}
+if (textarea) textarea.addEventListener("input", updateCharCount);
 
 function updateCharCount() {
   const ta = document.getElementById("promptInput");
@@ -111,67 +102,44 @@ async function generatePlan() {
   showLoading(true);
   hideResult();
 
-  const systemPrompt = `You are CapCut Auto, an expert video editing assistant that creates precise, detailed, step-by-step editing guides for CapCut (the mobile/desktop video editing app).
+  const systemPrompt = `You are CapCut Auto, an expert video editing assistant that creates precise, detailed, step-by-step editing guides specifically for CapCut.
 
-When given a video edit description, generate a professional editing plan that:
-1. Is organized into clear sections (Setup, Clips & Timeline, Effects, Text & Captions, Audio, Color & Filters, Export)
-2. Uses exact CapCut feature names (e.g., "CapCut's Overlay panel", "Auto Captions", "Keyframe animation", "Speed Curve")
-3. Gives specific, actionable steps a beginner can follow
-4. Includes timing suggestions where relevant
-5. Mentions specific CapCut templates or effects by name when helpful
+When given a video edit description, generate a professional editing plan organized into clear sections using exact CapCut feature names.
 
-Format your response in this EXACT structure (use the ### headers exactly as shown):
+Format your response using EXACTLY these section headers:
 
 ### 🎬 Overview
-[2-3 sentence summary of the edit plan]
-
 ### 📁 Setup & Import
-[bullet list of steps]
-
 ### ✂️ Clips & Timeline
-[bullet list of steps]
-
 ### ✨ Effects & Transitions
-[bullet list of steps]
-
 ### 📝 Text & Captions
-[bullet list of steps]
-
 ### 🎵 Audio & Music
-[bullet list of steps]
-
 ### 🎨 Color & Filters
-[bullet list of steps]
-
 ### 📤 Export Settings
-[bullet list of steps]
-
 ### 💡 Pro Tips
-[2-3 expert tips specific to this style]
 
-Keep each bullet point concise and actionable. Use CapCut's actual UI terms.`;
+Use bullet points starting with - for each step. Be specific and actionable.`;
 
-  const userMessage = `Create a detailed CapCut editing plan for this video:
-
+  const userMessage = `Create a detailed CapCut editing plan.
 Style: ${currentStyle}
-Description: ${prompt}
-
-Give me a complete, step-by-step guide I can follow in CapCut right now.`;
+Description: ${prompt}`;
 
   try {
-    const response = await fetch(CLAUDE_API_URL, {
+    const response = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://aicapcuteditor-coder.github.io/capcut-auto",
+        "X-Title": "CapCut Auto"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "mistralai/mistral-7b-instruct:free",
         max_tokens: 1500,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }]
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage }
+        ]
       })
     });
 
@@ -181,13 +149,13 @@ Give me a complete, step-by-step guide I can follow in CapCut right now.`;
     }
 
     const data = await response.json();
-    const planText = data.content?.[0]?.text || "";
+    const planText = data.choices?.[0]?.message?.content || "";
     currentPlanText = planText;
-
     renderPlan(planText);
+
   } catch (err) {
     console.error("Generation error:", err);
-    showToast("❌ Error: " + (err.message || "Could not generate plan. Check your API key."));
+    showToast("❌ Error: " + (err.message || "Could not generate plan."));
     showLoading(false);
   }
 }
@@ -203,7 +171,6 @@ function showLoading(show) {
     loadingArea.classList.remove("hidden");
     generateBtn.disabled = true;
     generateBtnText.textContent = "Generating...";
-
     let i = 0;
     document.getElementById("loadingText").textContent = loadingMessages[0];
     loadingInterval = setInterval(() => {
@@ -225,12 +192,9 @@ function hideResult() {
 // ---- Render Plan ----
 function renderPlan(text) {
   showLoading(false);
-
   const html = parsePlanToHTML(text);
   document.getElementById("resultContent").innerHTML = html;
   document.getElementById("resultArea").classList.remove("hidden");
-
-  // Scroll into view
   document.getElementById("resultArea").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -245,36 +209,28 @@ function parsePlanToHTML(text) {
       if (inList) { html += "</ul>"; inList = false; }
       continue;
     }
-
     if (trimmed.startsWith("### ")) {
       if (inList) { html += "</ul>"; inList = false; }
       html += `<h3>${trimmed.replace("### ", "")}</h3>`;
-    } else if (trimmed.startsWith("- ") || trimmed.startsWith("• ") || trimmed.match(/^\d+\./)) {
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
       if (!inList) { html += "<ul>"; inList = true; }
-      const content = trimmed.replace(/^(-\s|•\s|\d+\.\s)/, "");
-      const id = `step-${Math.random().toString(36).slice(2,8)}`;
+      const content = trimmed.replace(/^(-\s|•\s)/, "");
+      const id = `step-${Math.random().toString(36).slice(2, 8)}`;
       html += `<li id="${id}" onclick="toggleStep('${id}')">
         <div class="step-check"></div>
         <span>${escapeHtml(content)}</span>
       </li>`;
-    } else if (trimmed.startsWith("💡") || trimmed.startsWith("ℹ")) {
-      if (inList) { html += "</ul>"; inList = false; }
-      html += `<div class="note-block">${escapeHtml(trimmed)}</div>`;
     } else {
       if (inList) { html += "</ul>"; inList = false; }
       html += `<p style="color:var(--text-muted);font-size:14px;margin-bottom:8px;">${escapeHtml(trimmed)}</p>`;
     }
   }
-
   if (inList) html += "</ul>";
   return html;
 }
 
 function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function toggleStep(id) {
@@ -287,32 +243,27 @@ function copyPlan() {
   if (!currentPlanText) return;
   navigator.clipboard.writeText(currentPlanText).then(() => {
     showToast("📋 Plan copied to clipboard!");
-  }).catch(() => {
-    showToast("Could not copy. Try again.");
   });
 }
 
 async function savePlan() {
   if (!currentPlanText || !currentUser) return;
-
   const prompt = document.getElementById("promptInput").value.trim();
   const sb = getSupabase();
 
   try {
     const { error } = await sb.from("edit_plans").insert({
       user_id: currentUser.id,
-      prompt: prompt,
+      prompt,
       style: currentStyle,
       plan: currentPlanText,
       created_at: new Date().toISOString()
     });
-
     if (error) {
-      // Table might not exist — save to localStorage as fallback
       saveToLocal({ prompt, style: currentStyle, plan: currentPlanText });
       showToast("💾 Saved locally!");
     } else {
-      showToast("💾 Plan saved to your account!");
+      showToast("💾 Plan saved!");
       loadHistory();
     }
   } catch {
@@ -338,9 +289,8 @@ function clearPlan() {
 
 // ---- History ----
 async function loadHistory() {
-  const sb = getSupabase();
   if (!currentUser) return;
-
+  const sb = getSupabase();
   try {
     const { data, error } = await sb
       .from("edit_plans")
@@ -348,11 +298,9 @@ async function loadHistory() {
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(50);
-
     if (!error && data) {
       savedPlans = data;
     } else {
-      // Load from localStorage
       const key = `capcut_plans_${currentUser.id}`;
       savedPlans = JSON.parse(localStorage.getItem(key) || "[]");
     }
@@ -365,7 +313,6 @@ async function loadHistory() {
 function renderHistory() {
   const list = document.getElementById("historyList");
   if (!list) return;
-
   if (!savedPlans || savedPlans.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
@@ -376,24 +323,18 @@ function renderHistory() {
       </div>`;
     return;
   }
-
   list.innerHTML = savedPlans.map((plan, i) => {
-    const date = new Date(plan.created_at).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric"
-    });
-    const prompt = plan.prompt || "Untitled plan";
-    const style = plan.style || "cinematic";
-
+    const date = new Date(plan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     return `
       <div class="history-item" onclick="openPlan(${i})">
         <div class="history-item-content">
-          <div class="history-item-prompt">${escapeHtml(prompt)}</div>
+          <div class="history-item-prompt">${escapeHtml(plan.prompt || "Untitled plan")}</div>
           <div class="history-item-meta">
             <span>📅 ${date}</span>
-            <span>🎬 ${style}</span>
+            <span>🎬 ${plan.style || "cinematic"}</span>
           </div>
         </div>
-        <div class="history-item-badge">${style}</div>
+        <div class="history-item-badge">${plan.style || "cinematic"}</div>
         <div class="history-item-actions" onclick="event.stopPropagation()">
           <button class="btn-outline btn-sm" onclick="deletePlan(${i})">🗑</button>
         </div>
@@ -404,47 +345,29 @@ function renderHistory() {
 function openPlan(index) {
   const plan = savedPlans[index];
   if (!plan) return;
-
   const modal = document.getElementById("planModal");
   const content = document.getElementById("planModalContent");
-
-  const date = new Date(plan.created_at).toLocaleDateString("en-US", {
-    month: "long", day: "numeric", year: "numeric"
-  });
-
+  const date = new Date(plan.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   content.innerHTML = `
     <div class="plan-modal-header">
       <h2>📋 Edit Plan</h2>
-      <p>${escapeHtml(plan.prompt || "Saved plan")} · ${date} · ${plan.style || "cinematic"}</p>
+      <p>${escapeHtml(plan.prompt || "Saved plan")} · ${date}</p>
     </div>
-    <div class="result-content">
-      ${parsePlanToHTML(plan.plan || "")}
-    </div>`;
-
+    <div class="result-content">${parsePlanToHTML(plan.plan || "")}</div>`;
   modal.classList.remove("hidden");
   modal.classList.add("visible");
 }
 
 async function deletePlan(index) {
   const plan = savedPlans[index];
-  if (!plan) return;
-
-  if (!confirm("Delete this plan?")) return;
-
+  if (!plan || !confirm("Delete this plan?")) return;
   const sb = getSupabase();
-
   if (plan.id && typeof plan.id === "string") {
-    // Supabase UUID
     await sb.from("edit_plans").delete().eq("id", plan.id);
   }
-
-  // Remove from local cache
   savedPlans.splice(index, 1);
-
-  // Also update localStorage
   const key = `capcut_plans_${currentUser?.id || "local"}`;
   localStorage.setItem(key, JSON.stringify(savedPlans));
-
   renderHistory();
   showToast("🗑 Plan deleted.");
 }
@@ -459,7 +382,6 @@ function closePlanModalDirect() {
   setTimeout(() => modal.classList.add("hidden"), 200);
 }
 
-// ---- Templates ----
 function useTemplate(prompt) {
   switchView("new");
   document.getElementById("promptInput").value = prompt;
