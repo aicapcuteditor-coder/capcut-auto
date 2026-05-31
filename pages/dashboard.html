@@ -1,1 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — CapCut Auto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+</head>
+<body class="dashboard-body">
+  <div class="bg-grid"></div>
 
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">✂</span>
+      <span class="logo-text">CapCut<span class="accent">Auto</span></span>
+    </div>
+
+    <nav class="side-nav">
+      <a href="#" class="side-link active" data-view="new">
+        <span class="side-icon">✨</span> New Edit Plan
+      </a>
+      <a href="#" class="side-link" data-view="history">
+        <span class="side-icon">📋</span> My Plans
+      </a>
+      <a href="#" class="side-link" data-view="templates">
+        <span class="side-icon">🎬</span> Templates
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="user-card" id="userCard">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div class="user-info">
+          <div class="user-email" id="userEmail">Loading...</div>
+          <div class="user-plan">Free Plan</div>
+        </div>
+      </div>
+      <button class="side-link logout-btn" onclick="handleLogout()">
+        <span class="side-icon">🚪</span> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="dash-main">
+
+    <!-- New Edit Plan View -->
+    <div id="view-new" class="dash-view active">
+      <div class="dash-header">
+        <h1>Generate Edit Plan</h1>
+        <p>Describe what you want — the AI will build your step-by-step CapCut guide.</p>
+      </div>
+
+      <div class="prompt-area">
+        <div class="prompt-style-bar">
+          <span class="style-label">Style:</span>
+          <button class="style-chip active" onclick="setStyle(this,'cinematic')">🎥 Cinematic</button>
+          <button class="style-chip" onclick="setStyle(this,'tiktok')">📱 TikTok</button>
+          <button class="style-chip" onclick="setStyle(this,'vlog')">🎒 Vlog</button>
+          <button class="style-chip" onclick="setStyle(this,'youtube')">▶️ YouTube</button>
+          <button class="style-chip" onclick="setStyle(this,'music video')">🎵 Music Video</button>
+        </div>
+
+        <div class="prompt-box">
+          <textarea
+            id="promptInput"
+            class="prompt-textarea"
+            placeholder="Describe your video edit in detail...
+
+Examples:
+• Make a 30-second travel reel with slow motion shots, warm color grading, upbeat music, and city name text overlays
+• Create a cooking tutorial with text labels for each ingredient and a countdown timer at the end
+• Edit a birthday video montage with fade transitions, captions, and an emotional background track"
+            onkeydown="handlePromptKey(event)"
+          ></textarea>
+          <div class="prompt-footer">
+            <span class="char-count" id="charCount">0 / 500</span>
+            <button class="btn-primary generate-btn" id="generateBtn" onclick="generatePlan()">
+              <span id="generateBtnText">Generate Plan ✨</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-hint">
+          Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to generate
+        </div>
+      </div>
+
+      <!-- Result Area -->
+      <div id="resultArea" class="result-area hidden">
+        <div class="result-header">
+          <div class="result-title">
+            <span class="result-icon">📋</span>
+            <h2>Your CapCut Edit Plan</h2>
+          </div>
+          <div class="result-actions">
+            <button class="btn-outline btn-sm" onclick="copyPlan()">📋 Copy</button>
+            <button class="btn-outline btn-sm" onclick="savePlan()">💾 Save</button>
+            <button class="btn-outline btn-sm" onclick="clearPlan()">🗑 Clear</button>
+          </div>
+        </div>
+        <div id="resultContent" class="result-content"></div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loadingArea" class="loading-area hidden">
+        <div class="loading-spinner"></div>
+        <p id="loadingText">Analyzing your edit request...</p>
+      </div>
+    </div>
+
+    <!-- History View -->
+    <div id="view-history" class="dash-view">
+      <div class="dash-header">
+        <h1>My Edit Plans</h1>
+        <p>All your saved edit plans in one place.</p>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="empty-state">
+          <div class="empty-icon">📂</div>
+          <h3>No saved plans yet</h3>
+          <p>Generate your first edit plan and save it here.</p>
+          <button class="btn-primary" onclick="switchView('new')">Create Plan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Templates View -->
+    <div id="view-templates" class="dash-view">
+      <div class="dash-header">
+        <h1>Edit Templates</h1>
+        <p>Popular edit styles — click to use as a starting point.</p>
+      </div>
+      <div class="templates-grid">
+        <div class="template-card" onclick="useTemplate('Cinematic travel reel: slow motion clips, color grading with warm tones, city name text overlays, smooth transitions, and an upbeat background music track')">
+          <div class="template-thumb">🌍</div>
+          <h3>Travel Reel</h3>
+          <p>Cinematic slow-mo with location overlays</p>
+        </div>
+        <div class="template-card" onclick="useTemplate('TikTok trending video: fast cuts, trending sound sync, text captions on screen, zoom-in punch effects, and viral-style transitions every 2 seconds')">
+          <div class="template-thumb">📱</div>
+          <h3>TikTok Viral</h3>
+          <p>Fast cuts, sound sync, trending style</p>
+        </div>
+        <div class="template-card" onclick="useTemplate('YouTube vlog edit: intro title card, talking head segments with lower thirds, B-roll cutaways, background music at 20% volume, end screen with subscribe button')">
+          <div class="template-thumb">▶️</div>
+          <h3>YouTube Vlog</h3>
+          <p>Intro, lower thirds, B-roll workflow</p>
+        </div>
+        <div class="template-card" onclick="useTemplate('Birthday montage: soft fade transitions, photo slideshow with Ken Burns effect, emotional music, names and dates as subtitles, and a heartfelt title card at the start')">
+          <div class="template-thumb">🎂</div>
+          <h3>Birthday Montage</h3>
+          <p>Emotional slideshow with captions</p>
+        </div>
+        <div class="template-card" onclick="useTemplate('Music video edit: cuts synced to beat drops, color grading with high contrast, split screen effects, lyrics as animated text, and slow zoom during chorus')">
+          <div class="template-thumb">🎵</div>
+          <h3>Music Video</h3>
+          <p>Beat-synced cuts with animated lyrics</p>
+        </div>
+        <div class="template-card" onclick="useTemplate('Cooking tutorial: overhead shots labeled with ingredient names, step counter in corner, timer graphic for cooking durations, upbeat background music, and final dish reveal with zoom')">
+          <div class="template-thumb">🍳</div>
+          <h3>Cooking Tutorial</h3>
+          <p>Labels, timers, and ingredient overlays</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Plan Detail Modal -->
+  <div class="modal-overlay hidden" id="planModal" onclick="closePlanModal(event)">
+    <div class="modal modal-large">
+      <button class="modal-close" onclick="closePlanModalDirect()">✕</button>
+      <div id="planModalContent"></div>
+    </div>
+  </div>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>
